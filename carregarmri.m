@@ -4,7 +4,21 @@ Y = dicomread('MRIPe.dcm');
 figure
 imshow(Y,[])
 
-F = fft2(Y);
+N = length(Y)
+
+T = 24
+
+for i = 1+T:N-T
+    y(:,i-T) = Y(:,i);
+end
+for i = 1+T:N-T
+    z(i-T,:) = y(i,:);
+end
+
+figure
+imshow(z,[])
+
+F = fft2(z);
 FFT = abs(fftshift(F));
                  
 figure                  
@@ -22,4 +36,5 @@ figure
 colormap(gray(1024))           
 image(D) 
 axis image 
+
 
