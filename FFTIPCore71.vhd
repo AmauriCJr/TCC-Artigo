@@ -1,9 +1,9 @@
 ----------------------------------------------------------------------------------
--- Company: 
--- Engineer: 
+-- Company: Universidade de Brasília
+-- Engineer: Amauri da Costa Júnior
 -- 
 -- Create Date:    17:28:58 11/02/2020 
--- Design Name: 
+-- Design Name: Recontrução da imagem do pé da minha mãe
 -- Module Name:    TopLevel - Behavioral 
 -- Project Name: 
 -- Target Devices: 
@@ -82,8 +82,10 @@ signal VariavelTeste : STD_LOGIC_VECTOR(31 DOWNTO 0) := (others => '0');
     signal	start 			: STD_LOGIC:= '1';							--Manda o processo de começar o carregamento de dados e fft começar
     signal	xn_re 			: STD_LOGIC_VECTOR(7 DOWNTO 0);			--Dados reais
     signal	xn_im 			: STD_LOGIC_VECTOR(7 DOWNTO 0);			--Dados imaginários
-    signal	fwd_inv 			: STD_LOGIC:= '1';							--1 pra transformada direta, 0 pra inversa
+    signal	fwd_inv 			: STD_LOGIC:= '0';							--1 pra transformada direta, 0 pra inversa
     signal	fwd_inv_we 		: STD_LOGIC:= '1';							--permite a variavel de cima modificar
+	 signal	scale_sch 		: STD_LOGIC_VECTOR(3 DOWNTO 0):= "0011";
+    signal 	scale_sch_we 	: STD_LOGIC:= '1';
     signal	rfd 				: STD_LOGIC; 									--Daqui pra baixo é saida
     signal	xn_index 		: STD_LOGIC_VECTOR(2 DOWNTO 0); 
     signal	busy 				: STD_LOGIC;
@@ -91,8 +93,12 @@ signal VariavelTeste : STD_LOGIC_VECTOR(31 DOWNTO 0) := (others => '0');
     signal	done 				: STD_LOGIC;
     signal	dv 				: STD_LOGIC;
     signal	xk_index 		: STD_LOGIC_VECTOR(2 DOWNTO 0);
-    signal	xk_re 			: STD_LOGIC_VECTOR(11 DOWNTO 0);
-    signal	xk_im 			: STD_LOGIC_VECTOR(11 DOWNTO 0);
+    signal	xk_re 			: STD_LOGIC_VECTOR(7 DOWNTO 0);
+    signal	xk_im 			: STD_LOGIC_VECTOR(7 DOWNTO 0);
+	 
+	 
+	 signal	Nxk_re 			: STD_LOGIC_VECTOR(7 DOWNTO 0);
+    signal	Nxk_im 			: STD_LOGIC_VECTOR(7 DOWNTO 0);
   
   
 
@@ -105,6 +111,8 @@ COMPONENT FFT
     xn_im : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
     fwd_inv : IN STD_LOGIC;
     fwd_inv_we : IN STD_LOGIC;
+    scale_sch : IN STD_LOGIC_VECTOR(3 DOWNTO 0);
+    scale_sch_we : IN STD_LOGIC;
     rfd : OUT STD_LOGIC;
     xn_index : OUT STD_LOGIC_VECTOR(2 DOWNTO 0);
     busy : OUT STD_LOGIC;
@@ -112,8 +120,8 @@ COMPONENT FFT
     done : OUT STD_LOGIC;
     dv : OUT STD_LOGIC;
     xk_index : OUT STD_LOGIC_VECTOR(2 DOWNTO 0);
-    xk_re : OUT STD_LOGIC_VECTOR(11 DOWNTO 0);
-    xk_im : OUT STD_LOGIC_VECTOR(11 DOWNTO 0)
+    xk_re : OUT STD_LOGIC_VECTOR(7 DOWNTO 0);
+    xk_im : OUT STD_LOGIC_VECTOR(7 DOWNTO 0)
   );
 END COMPONENT;
 
@@ -128,6 +136,8 @@ FFT_IPCore : FFT
     xn_im => xn_im,
     fwd_inv => fwd_inv,
     fwd_inv_we => fwd_inv_we,
+    scale_sch => scale_sch,
+    scale_sch_we => scale_sch_we,
     rfd => rfd,
     xn_index => xn_index,
     busy => busy,
@@ -182,11 +192,12 @@ image_rom : image1 port map(clk,addr_rom,data_rom);
 image_ram : image2 port map(clk,wr_enable,addr_ram,data_in_ram,data_out_ram);
 
 
-
+-- Para a escrita das variáveis de configuração
 process(clk)
 begin
     if(rising_edge(clk)) then
 		fwd_inv_we <= '0';
+		scale_sch_we <= '0';
 	 end if;
 end process;
 
@@ -219,7 +230,11 @@ end process;
 xn_re <= data_rom;
 xn_im <= data_rom;
 
+--Nxk_re <= xk_re sll 3;
 
+
+--Nxk_re <= shift_right(signed(data_rom), 2);
+--Nxk_im <= shift_right(signed(data_rom), 2);
 
 
 
