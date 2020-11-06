@@ -48,7 +48,25 @@ COMPONENT image1
   );
 END COMPONENT;
 
+COMPONENT image4
+  PORT (
+    clka : IN STD_LOGIC;
+    addra : IN STD_LOGIC_VECTOR(5 DOWNTO 0);
+    douta : OUT STD_LOGIC_VECTOR(7 DOWNTO 0)
+  );
+END COMPONENT;
+
 COMPONENT image2
+  PORT (
+    clka : IN STD_LOGIC;
+    wea : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
+    addra : IN STD_LOGIC_VECTOR(5 DOWNTO 0);
+    dina : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
+    douta : OUT STD_LOGIC_VECTOR(7 DOWNTO 0)
+  );
+END COMPONENT;
+
+COMPONENT image3
   PORT (
     clka : IN STD_LOGIC;
     wea : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
@@ -61,9 +79,12 @@ END COMPONENT;
 
 
 signal done1 : std_logic := '0';
-signal wr_enable : STD_LOGIC_VECTOR(0 DOWNTO 0) := "0";
-signal addr_rom,addr_ram : STD_LOGIC_VECTOR(5 DOWNTO 0) := (others => '0');
-signal data_rom,data_in_ram,data_out_ram : STD_LOGIC_VECTOR(7 DOWNTO 0) := (others => '0');
+signal wr_enable_re,wr_enable_im : STD_LOGIC_VECTOR(0 DOWNTO 0) := "0";
+signal addr_rom_re,addr_rom_im,addr_ram_re,addr_ram_im : STD_LOGIC_VECTOR(5 DOWNTO 0) := (others => '0');
+signal data_rom_re,data_in_ram_re,data_out_ram_re : STD_LOGIC_VECTOR(7 DOWNTO 0) := (others => '0');
+signal data_rom_im,data_in_ram_im,data_out_ram_im : STD_LOGIC_VECTOR(7 DOWNTO 0) := (others => '0');
+
+
 signal row_index,col_index : integer := 0;
 
 signal VariavelTeste : STD_LOGIC_VECTOR(31 DOWNTO 0) := (others => '0');
@@ -174,22 +195,13 @@ FFT_IPCore : FFT
 
 
 
+image_rom_re : image1 port map(clk,addr_rom_re,data_rom_re);
 
+image_rom_im : image4 port map(clk,addr_rom_im,data_rom_im);
 
+image_ram_re : image2 port map(clk,wr_enable_re,addr_ram_re,data_in_ram_re,data_out_ram_re);
 
-
-
---the original image of size 3*4 stored here in rom.
---[22,12,200,126,
---127,128,129,255,
---10,0,1,98]
-image_rom : image1 port map(clk,addr_rom,data_rom);
---the transpose of image1, of size 4*3, is stored here in ram.
---[22,127,10,
---12,128,0,
---200,129,1,
---126,255,98]
-image_ram : image2 port map(clk,wr_enable,addr_ram,data_in_ram,data_out_ram);
+image_ram_im : image3 port map(clk,wr_enable_im,addr_ram_im,data_in_ram_im,data_out_ram_im);
 
 
 -- Para a escrita das variáveis de configuração
@@ -202,17 +214,29 @@ begin
 end process;
 
 
+--REINICIA O PROCESSO DE LEITURA DA IMAGEM
+--process(done)
+--begin
+--	if (done = '1') then
+--	done1 <= '0';
+--	end if;
+--
+--end process;
 
+
+
+
+--LE A IMAGEM SEPARADA EM PARTE REAL E IMAGINARIA
 process(clk)
 begin
     if(rising_edge(clk)) then
         if(done1 = '0') then
-			addr_rom <= addr_rom + "0001"; --start reading each pixel from rom
-            
+			addr_rom_re <= addr_rom_re + "000001"; --start reading each pixel from rom
+         addr_rom_im <= addr_rom_im + "000001";  
             --row and column index of the image.
             if(col_index = 7) then  --check if last column has reached. a matrix 3x4 tem 4 colunas que cabem em de 0 a 3
 					col_index <= 0; --reset it to zero.
-					done1 <= '1';
+					--done1 <= '1';
                 if(row_index = 7) then --check if last row has reached. a matrix 3x4 tem 3 linhas que cabem em de 0 a 2
 						row_index <= 0; --reset it to zero
 						done1 <= '1'; --the processing is done.
@@ -227,14 +251,33 @@ begin
 end process; 
 
 
-xn_re <= data_rom;
-xn_im <= data_rom;
-
---Nxk_re <= xk_re sll 3;
+xn_re <= data_rom_re;
+xn_im <= data_rom_im;
 
 
---Nxk_re <= shift_right(signed(data_rom), 2);
---Nxk_im <= shift_right(signed(data_rom), 2);
+
+
+--wr_enable <= "1"; --write enable for the RAM
+--data_in_ram_re <= xk_re;
+--data_in_ram_im <= xk_im;
+--addr_ram_re <= conv_std_logic_vector((col_index*3 + row_index),4);
+----addr_ram_im <= conv_std_logic_vector((col_index*3 + row_index),4);
+--        else
+--        --this segment reads the transposed image(data written into RAM).
+--wr_enable <= "0";  --after processing write enable is disabled
+--addr_rom <= "000000"; 
+--            if(addr_ram = "1011") then 
+--addr_ram_re <= "000000";
+--            else
+--addr_ram_re <= addr_ram + 1;
+--            end if; 
+--        end if; 
+--    end if;     
+--end process;    
+--
+--end Behavioral;
+
+
 
 
 
