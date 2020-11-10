@@ -28,9 +28,9 @@ END COMPONENT;
 
 signal done,clk : std_logic := '0';
 signal wr_enable : STD_LOGIC_VECTOR(0 DOWNTO 0) := "0";
-signal addr_rom,addr_ram : STD_LOGIC_VECTOR(5 DOWNTO 0) := (others => '0');
+signal addr_rom,addr_ram: STD_LOGIC_VECTOR(5 DOWNTO 0) := (others => '0');
 signal data_rom,data_in_ram,data_out_ram : STD_LOGIC_VECTOR(7 DOWNTO 0) := (others => '0');
-signal row_index,col_index : integer := 0;
+signal row_index,col_index,finalizaT : integer := 0;
 
 begin
 
@@ -70,21 +70,25 @@ row_index <= row_index + 1; --increment row index.
             else
 col_index <= col_index + 1; --increment column index.
             end if;     
---            
+--
+      
 wr_enable <= "1"; --write enable for the RAM
 data_in_ram <= data_rom; --store the current read data from rom into ram.
 addr_ram <= conv_std_logic_vector((col_index*8 + row_index),6); --set the address for RAM.
-        else
+			else
+				if (finalizaT < 2) then  
         --this segment reads the transposed image(data written into RAM).
-wr_enable <= "0";  --after processing write enable is disabled
-addr_rom <= "000000"; 
+					wr_enable <= "0";  --after processing write enable is disabled
+					addr_rom <= "000000"; 
             if(addr_ram = "111111") then 
-addr_ram <= "000000";
+					addr_ram <= "000000";
+					finalizaT <= finalizaT + 1;
             else
-addr_ram <= addr_ram + 1;
+					addr_ram <= addr_ram + 1;
             end if; 
         end if; 
-    end if;     
+    end if;  
+end if;	 
 end process;    
 
 end Behavioral;
