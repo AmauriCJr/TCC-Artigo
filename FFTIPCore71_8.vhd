@@ -79,22 +79,27 @@ END COMPONENT;
 
 
 signal done1 : std_logic := '0';
-signal wr_enable_re,wr_enable_im : STD_LOGIC_VECTOR(0 DOWNTO 0) := "0";
-signal addr_rom_re,addr_rom_im,addr_ram_re,addr_ram_im : STD_LOGIC_VECTOR(5 DOWNTO 0) := (others => '0');
+signal wr_enable: STD_LOGIC_VECTOR(0 DOWNTO 0) := "0";
+signal addr_rom_re,addr_rom_im,addr_ram : STD_LOGIC_VECTOR(5 DOWNTO 0) := (others => '0');
 signal data_rom_re,data_in_ram_re,data_out_ram_re : STD_LOGIC_VECTOR(7 DOWNTO 0) := (others => '0');
 signal data_rom_im,data_in_ram_im,data_out_ram_im : STD_LOGIC_VECTOR(7 DOWNTO 0) := (others => '0');
 
 
-signal row_index,col_index : integer := 0;
+signal row_index,col_index,finalizaT : integer := 0;
 
-signal VariavelTeste : STD_LOGIC_VECTOR(31 DOWNTO 0) := (others => '0');
-
-
+signal xk_index_row,xk_index_col : integer := -2;
 
 
-  -----------------------------------------------------------------------
-  -- Timing constants
-  -----------------------------------------------------------------------
+signal contador : STD_LOGIC_VECTOR(3 DOWNTO 0) := (others => '0');
+
+signal TransformadaPronta : STD_LOGIC := '0';
+
+--signal VariavelTeste : STD_LOGIC_VECTOR(31 DOWNTO 0) := (others => '0');
+
+
+
+
+
   constant CLOCK_PERIOD : time := 100 ns;
   constant T_HOLD       : time := 10 ns;
   constant T_STROBE     : time := CLOCK_PERIOD - (1 ns);
@@ -114,6 +119,7 @@ signal VariavelTeste : STD_LOGIC_VECTOR(31 DOWNTO 0) := (others => '0');
     signal	done 				: STD_LOGIC;
     signal	dv 				: STD_LOGIC;
     signal	xk_index 		: STD_LOGIC_VECTOR(2 DOWNTO 0);
+	 --signal	xk_index_row	: STD_LOGIC_VECTOR(2 DOWNTO 0);			--Informação sobre a linha da matriz da transformada
     signal	xk_re 			: STD_LOGIC_VECTOR(7 DOWNTO 0);
     signal	xk_im 			: STD_LOGIC_VECTOR(7 DOWNTO 0);
 	 
@@ -178,7 +184,7 @@ FFT_IPCore : FFT
   
 
   -----------------------------------------------------------------------
-  -- Generate clock
+  -- Gera o clock
   -----------------------------------------------------------------------
 
   clock_gen : process
@@ -199,9 +205,9 @@ image_rom_re : image1 port map(clk,addr_rom_re,data_rom_re);
 
 image_rom_im : image4 port map(clk,addr_rom_im,data_rom_im);
 
-image_ram_re : image2 port map(clk,wr_enable_re,addr_ram_re,data_in_ram_re,data_out_ram_re);
+image_ram_re : image2 port map(clk,wr_enable,addr_ram,data_in_ram_re,data_out_ram_re);
 
-image_ram_im : image3 port map(clk,wr_enable_im,addr_ram_im,data_in_ram_im,data_out_ram_im);
+image_ram_im : image3 port map(clk,wr_enable,addr_ram,data_in_ram_im,data_out_ram_im);
 
 
 -- Para a escrita das variáveis de configuração
@@ -231,21 +237,29 @@ process(clk)
 begin
     if(rising_edge(clk)) then
         if(done1 = '0') then
-			addr_rom_re <= addr_rom_re + "000001"; --start reading each pixel from rom
+			addr_rom_re <= addr_rom_re + "000001";
          addr_rom_im <= addr_rom_im + "000001";  
-            --row and column index of the image.
-            if(col_index = 7) then  --check if last column has reached. a matrix 3x4 tem 4 colunas que cabem em de 0 a 3
-					col_index <= 0; --reset it to zero.
+            if(col_index = 7) then
+					col_index <= 0;
 					--done1 <= '1';
-                if(row_index = 7) then --check if last row has reached. a matrix 3x4 tem 3 linhas que cabem em de 0 a 2
-						row_index <= 0; --reset it to zero
-						done1 <= '1'; --the processing is done.
+                if(row_index = 7) then 
+						row_index <= 0;
+						done1 <= '1';
                 else    
-						row_index <= row_index + 1; --increment row index.
+						row_index <= row_index + 1;
                 end if;
             else
-					col_index <= col_index + 1; --increment column index.
-            end if; 
+					col_index <= col_index + 1;
+            end if;
+
+----------------------------------------------------------------------------------------------
+
+
+
+
+
+
+------------------------------------------------------------------------------------------------				
 			end if;
      end if;       
 end process; 
@@ -257,28 +271,54 @@ xn_im <= data_rom_im;
 
 
 
---wr_enable <= "1"; --write enable for the RAM
---data_in_ram_re <= xk_re;
---data_in_ram_im <= xk_im;
---addr_ram_re <= conv_std_logic_vector((col_index*3 + row_index),4);
-----addr_ram_im <= conv_std_logic_vector((col_index*3 + row_index),4);
---        else
---        --this segment reads the transposed image(data written into RAM).
---wr_enable <= "0";  --after processing write enable is disabled
---addr_rom <= "000000"; 
---            if(addr_ram = "1011") then 
---addr_ram_re <= "000000";
---            else
---addr_ram_re <= addr_ram + 1;
---            end if; 
---        end if; 
---    end if;     
---end process;    
---
---end Behavioral;
+process(clk)   
+begin
+	if(rising_edge(clk)) and(edone = '1') then
+		contador <= contador + "0001";
+		if (contador = "1000") then
+			TransformadaPronta <= '1';
+		end if;
+	end if;
+end process;
 
+process(clk)   
+begin
+	if(rising_edge(clk) and edone = '1') then
+		xk_index_row <= xk_index_row + 1;
+	end if;
+end process;
+      
+xk_index_col <= conv_integer(xk_index);
+		
+process(clk)
+begin
+	if(rising_edge(clk)) then
+		if(TransformadaPronta = '0') then
+			wr_enable <= "1"; --liga o modo escrever
+			data_in_ram_re <= xk_re;
+			data_in_ram_im <= xk_im;
+			addr_ram <= conv_std_logic_vector((xk_index_col*8 + xk_index_row),6); --o número 6 é o tamanho do vetor de endereço
+		else
+			if (finalizaT < 2) then
+				wr_enable <= "0";  --desliga o modo escrever
+				--addr_rom_re <= "000000"; 
+				if(addr_ram = "111111") then 
+					addr_ram <= "000000";
+					finalizaT <= finalizaT +1;
+            else
+					addr_ram <= addr_ram + 1;
+            end if; 
+        end if; 
+    end if; 
+end if;    
+end process;  
 
-
+--process(clk)   
+--begin
+--	if(rising_edge(clk) and finalizaT = 2) then
+--		
+--	end if;
+--end process;  
 
 
 
