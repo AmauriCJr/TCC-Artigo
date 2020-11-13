@@ -103,9 +103,14 @@ signal TransformadaPronta : STD_LOGIC := '0';
   constant CLOCK_PERIOD : time := 100 ns;
   constant T_HOLD       : time := 10 ns;
   constant T_STROBE     : time := CLOCK_PERIOD - (1 ns);
+
+--------------------------------------------------------------------------------------------
+---------------------------------SINAIS DO PRIMEIRO NÚCLEO----------------------------------
+--------------------------------------------------------------------------------------------  
   
     signal	clk 				: STD_LOGIC;									--Clock
     signal	start 			: STD_LOGIC:= '1';							--Manda o processo de começar o carregamento de dados e fft começar
+	 signal	sclr 				: STD_LOGIC:= '0';							--reseta a parada
     signal	xn_re 			: STD_LOGIC_VECTOR(7 DOWNTO 0);			--Dados reais
     signal	xn_im 			: STD_LOGIC_VECTOR(7 DOWNTO 0);			--Dados imaginários
     signal	fwd_inv 			: STD_LOGIC:= '0';							--1 pra transformada direta, 0 pra inversa
@@ -119,20 +124,71 @@ signal TransformadaPronta : STD_LOGIC := '0';
     signal	done 				: STD_LOGIC;
     signal	dv 				: STD_LOGIC;
     signal	xk_index 		: STD_LOGIC_VECTOR(2 DOWNTO 0);
-	 --signal	xk_index_row	: STD_LOGIC_VECTOR(2 DOWNTO 0);			--Informação sobre a linha da matriz da transformada
     signal	xk_re 			: STD_LOGIC_VECTOR(7 DOWNTO 0);
     signal	xk_im 			: STD_LOGIC_VECTOR(7 DOWNTO 0);
 	 
+--------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------
+
+
+
+--------------------------------------------------------------------------------------------
+---------------------------------SINAIS DO SEGUNDO NÚCLEO-----------------------------------
+--------------------------------------------------------------------------------------------  
 	 
-	 signal	Nxk_re 			: STD_LOGIC_VECTOR(7 DOWNTO 0);
-    signal	Nxk_im 			: STD_LOGIC_VECTOR(7 DOWNTO 0);
+	 
+    signal	start2 			: STD_LOGIC:= '1';							--Manda o processo de começar o carregamento de dados e fft começar
+	 signal	sclr2 			: STD_LOGIC:= '0';							--reseta a parada
+    signal	xn_re2 			: STD_LOGIC_VECTOR(7 DOWNTO 0);			--Dados reais
+    signal	xn_im2 			: STD_LOGIC_VECTOR(7 DOWNTO 0);			--Dados imaginários
+    signal	fwd_inv2			: STD_LOGIC:= '0';							--1 pra transformada direta, 0 pra inversa
+    signal	fwd_inv_we2 	: STD_LOGIC:= '1';							--permite a variavel de cima modificar
+	 signal	scale_sch2 		: STD_LOGIC_VECTOR(3 DOWNTO 0):= "0011";
+    signal 	scale_sch_we2 	: STD_LOGIC:= '1';
+    signal	rfd2 				: STD_LOGIC; 									--Daqui pra baixo é saida
+    signal	xn_index2 		: STD_LOGIC_VECTOR(2 DOWNTO 0); 
+    signal	busy2 			: STD_LOGIC;
+    signal	edone2 			: STD_LOGIC;
+    signal	done2				: STD_LOGIC;
+    signal	dv2 				: STD_LOGIC;
+    signal	xk_index2 		: STD_LOGIC_VECTOR(2 DOWNTO 0);
+    signal	xk_re2 			: STD_LOGIC_VECTOR(7 DOWNTO 0);
+    signal	xk_im2 			: STD_LOGIC_VECTOR(7 DOWNTO 0);
   
   
+--------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------
+
+
 
 
 COMPONENT FFT
   PORT (
     clk : IN STD_LOGIC;
+	 sclr : IN STD_LOGIC;
+    start : IN STD_LOGIC;
+    xn_re : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
+    xn_im : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
+    fwd_inv : IN STD_LOGIC;
+    fwd_inv_we : IN STD_LOGIC;
+    scale_sch : IN STD_LOGIC_VECTOR(3 DOWNTO 0);
+    scale_sch_we : IN STD_LOGIC;
+    rfd : OUT STD_LOGIC;
+    xn_index : OUT STD_LOGIC_VECTOR(2 DOWNTO 0);
+    busy : OUT STD_LOGIC;
+    edone : OUT STD_LOGIC;
+    done : OUT STD_LOGIC;
+    dv : OUT STD_LOGIC;
+    xk_index : OUT STD_LOGIC_VECTOR(2 DOWNTO 0);
+    xk_re : OUT STD_LOGIC_VECTOR(7 DOWNTO 0);
+    xk_im : OUT STD_LOGIC_VECTOR(7 DOWNTO 0)
+  );
+END COMPONENT;
+
+COMPONENT FFT2
+  PORT (
+    clk : IN STD_LOGIC;
+    sclr : IN STD_LOGIC;
     start : IN STD_LOGIC;
     xn_re : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
     xn_im : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
@@ -158,6 +214,29 @@ begin
 FFT_IPCore : FFT
   PORT MAP (
     clk => clk,
+	 sclr => sclr2,
+    start => start2,
+    xn_re => xn_re2,
+    xn_im => xn_im2,
+    fwd_inv => fwd_inv2,
+    fwd_inv_we => fwd_inv_we2,
+    scale_sch => scale_sch2,
+    scale_sch_we => scale_sch_we2,
+    rfd => rfd2,
+    xn_index => xn_index2,
+    busy => busy2,
+    edone => edone2,
+    done => done2,
+    dv => dv2,
+    xk_index => xk_index2,
+    xk_re => xk_re2,
+    xk_im => xk_im2
+  );
+  
+FFT2_IPCore : FFT2
+  PORT MAP (
+    clk => clk,
+    sclr => sclr,
     start => start,
     xn_re => xn_re,
     xn_im => xn_im,
@@ -187,18 +266,25 @@ FFT_IPCore : FFT
   -- Gera o clock
   -----------------------------------------------------------------------
 
-  clock_gen : process
-  begin
-    clk <= '0';
-    wait for CLOCK_PERIOD/2;
-    loop
-      clk <= '0';
+clock_gen : process
+begin
+	clk <= '0';
+	wait for CLOCK_PERIOD/2;
+	loop
+		clk <= '0';
       wait for CLOCK_PERIOD/2;
       clk <= '1';
       wait for CLOCK_PERIOD/2;
-    end loop;
-  end process clock_gen;
-
+	end loop;
+end process clock_gen;
+  
+--reset_gen : process
+--begin
+--	wait for  123*CLOCK_PERIOD;
+--	sclr <= '0';
+--	--TransformadaPronta <= '0';
+--	
+--end process reset_gen;
 
 
 image_rom_re : image1 port map(clk,addr_rom_re,data_rom_re);
@@ -250,16 +336,7 @@ begin
                 end if;
             else
 					col_index <= col_index + 1;
-            end if;
-
-----------------------------------------------------------------------------------------------
-
-
-
-
-
-
-------------------------------------------------------------------------------------------------				
+            end if;			
 			end if;
      end if;       
 end process; 
@@ -273,10 +350,13 @@ xn_im <= data_rom_im;
 
 process(clk)   
 begin
-	if(rising_edge(clk)) and(edone = '1') then
+	if(rising_edge(clk)) and(edone = '1') and (sclr = '0') then
 		contador <= contador + "0001";
 		if (contador = "1000") then
 			TransformadaPronta <= '1';
+			contador <= "0000";
+		else
+			TransformadaPronta <= '0';
 		end if;
 	end if;
 end process;
@@ -313,10 +393,17 @@ begin
 end if;    
 end process;  
 
+process(clk)   
+begin
+	if((TransformadaPronta = '1') and (dv = '1')) then
+		sclr <= '1';
+	end if;
+end process;  
+
 --process(clk)   
 --begin
---	if(rising_edge(clk) and finalizaT = 2) then
---		
+--	if(rising_edge(clk) and (finalizaT = 2) and (dv = '0')) then
+--		sclr <= '0';
 --	end if;
 --end process;  
 
