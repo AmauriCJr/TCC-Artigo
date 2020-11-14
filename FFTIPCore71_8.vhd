@@ -91,8 +91,10 @@ signal xk_index_row,xk_index_col : integer := -2;
 
 
 signal contador : STD_LOGIC_VECTOR(3 DOWNTO 0) := (others => '0');
+signal contador2 : STD_LOGIC_VECTOR(3 DOWNTO 0) := (others => '0');
 
 signal TransformadaPronta : STD_LOGIC := '0';
+
 
 --signal VariavelTeste : STD_LOGIC_VECTOR(31 DOWNTO 0) := (others => '0');
 
@@ -108,7 +110,7 @@ signal TransformadaPronta : STD_LOGIC := '0';
 ---------------------------------SINAIS DO PRIMEIRO NÚCLEO----------------------------------
 --------------------------------------------------------------------------------------------  
   
-    signal	clk 				: STD_LOGIC;									--Clock
+    signal	clk 				: STD_LOGIC:= '0';							--Clock
     signal	start 			: STD_LOGIC:= '1';							--Manda o processo de começar o carregamento de dados e fft começar
 	 signal	sclr 				: STD_LOGIC:= '0';							--reseta a parada
     signal	xn_re 			: STD_LOGIC_VECTOR(7 DOWNTO 0);			--Dados reais
@@ -137,8 +139,10 @@ signal TransformadaPronta : STD_LOGIC := '0';
 --------------------------------------------------------------------------------------------  
 	 
 	 
-    signal	start2 			: STD_LOGIC:= '1';							--Manda o processo de começar o carregamento de dados e fft começar
+	 signal	clk2 				: STD_LOGIC;									--Clock
+    signal	start2 			: STD_LOGIC:= '0';							--Manda o processo de começar o carregamento de dados e fft começar
 	 signal	sclr2 			: STD_LOGIC:= '0';							--reseta a parada
+	 signal  addr_in_fft2	: STD_LOGIC_VECTOR(5 DOWNTO 0):= (others => '0');
     signal	xn_re2 			: STD_LOGIC_VECTOR(7 DOWNTO 0);			--Dados reais
     signal	xn_im2 			: STD_LOGIC_VECTOR(7 DOWNTO 0);			--Dados imaginários
     signal	fwd_inv2			: STD_LOGIC:= '0';							--1 pra transformada direta, 0 pra inversa
@@ -158,7 +162,7 @@ signal TransformadaPronta : STD_LOGIC := '0';
   
 --------------------------------------------------------------------------------------------
 --------------------------------------------------------------------------------------------
-
+signal Transformada2Pronta : STD_LOGIC := '0';
 
 
 
@@ -214,28 +218,6 @@ begin
 FFT_IPCore : FFT
   PORT MAP (
     clk => clk,
-	 sclr => sclr2,
-    start => start2,
-    xn_re => xn_re2,
-    xn_im => xn_im2,
-    fwd_inv => fwd_inv2,
-    fwd_inv_we => fwd_inv_we2,
-    scale_sch => scale_sch2,
-    scale_sch_we => scale_sch_we2,
-    rfd => rfd2,
-    xn_index => xn_index2,
-    busy => busy2,
-    edone => edone2,
-    done => done2,
-    dv => dv2,
-    xk_index => xk_index2,
-    xk_re => xk_re2,
-    xk_im => xk_im2
-  );
-  
-FFT2_IPCore : FFT2
-  PORT MAP (
-    clk => clk,
     sclr => sclr,
     start => start,
     xn_re => xn_re,
@@ -255,6 +237,28 @@ FFT2_IPCore : FFT2
     xk_im => xk_im
   );
   
+FFT2_IPCore : FFT2
+  PORT MAP (
+    clk => clk2,
+	 sclr => sclr2,
+    start => start2,
+    xn_re => xn_re2,
+    xn_im => xn_im2,
+    fwd_inv => fwd_inv2,
+    fwd_inv_we => fwd_inv_we2,
+    scale_sch => scale_sch2,
+    scale_sch_we => scale_sch_we2,
+    rfd => rfd2,
+    xn_index => xn_index2,
+    busy => busy2,
+    edone => edone2,
+    done => done2,
+    dv => dv2,
+    xk_index => xk_index2,
+    xk_re => xk_re2,
+    xk_im => xk_im2
+  );
+  
   
   
   
@@ -269,7 +273,7 @@ FFT2_IPCore : FFT2
 clock_gen : process
 begin
 	clk <= '0';
-	wait for CLOCK_PERIOD/2;
+	--wait for CLOCK_PERIOD/2;
 	loop
 		clk <= '0';
       wait for CLOCK_PERIOD/2;
@@ -278,13 +282,7 @@ begin
 	end loop;
 end process clock_gen;
   
---reset_gen : process
---begin
---	wait for  123*CLOCK_PERIOD;
---	sclr <= '0';
---	--TransformadaPronta <= '0';
---	
---end process reset_gen;
+
 
 
 image_rom_re : image1 port map(clk,addr_rom_re,data_rom_re);
@@ -306,14 +304,15 @@ begin
 end process;
 
 
---REINICIA O PROCESSO DE LEITURA DA IMAGEM
---process(done)
---begin
---	if (done = '1') then
---	done1 <= '0';
---	end if;
---
---end process;
+process(clk)
+begin
+    if(rising_edge(clk) and (start2 = '1')) then
+		fwd_inv_we2 <= '0';
+		scale_sch_we2 <= '0';
+	 end if;
+end process;
+
+
 
 
 
@@ -345,9 +344,10 @@ end process;
 xn_re <= data_rom_re;
 xn_im <= data_rom_im;
 
+xn_re2 <= data_out_ram_re;
+xn_im2 <= data_out_ram_im;
 
-
-
+---------------------------SINAL DE CONCLUSÃO DA PRIMEIRA FFT---------------------
 process(clk)   
 begin
 	if(rising_edge(clk)) and(edone = '1') and (sclr = '0') then
@@ -360,6 +360,23 @@ begin
 		end if;
 	end if;
 end process;
+
+---------------------------SINAL DE CONCLUSÃO DA SEGUNDA FFT---------------------
+process(clk2)   
+begin
+	if(rising_edge(clk2)) and xk_index2 = "111" then
+		contador2 <= contador2 + "0001";
+		if (contador2 = "0111") then
+			Transformada2Pronta <= '1';
+			sclr2 <= '1';
+		else
+			Transformada2Pronta <= '0';
+		end if;
+	end if;
+end process;
+
+
+
 
 process(clk)   
 begin
@@ -398,14 +415,34 @@ begin
 	if((TransformadaPronta = '1') and (dv = '1')) then
 		sclr <= '1';
 	end if;
+end process; 
+
+process(clk)   
+begin
+	if(TransformadaPronta = '1') then
+		clk2 <= clk;
+		
+	end if;
+end process; 
+ 
+
+process(clk)   
+begin
+	if(rising_edge(clk) and (TransformadaPronta = '1')) then
+		start2 <= '1';
+		
+	end if;
 end process;  
 
---process(clk)   
---begin
---	if(rising_edge(clk) and (finalizaT = 2) and (dv = '0')) then
---		sclr <= '0';
---	end if;
---end process;  
+process(clk2)   
+begin
+	if(rising_edge(clk2) and (finalizaT = 1)) then
+		addr_in_fft2 <= addr_in_fft2 + "000001";
+		
+	end if;
+end process;  
+
+
 
 
 
