@@ -79,17 +79,30 @@ COMPONENT image3
 END COMPONENT;
 
 
+COMPONENT Resultado
+  PORT (
+    clka : IN STD_LOGIC;
+    wea : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
+    addra : IN STD_LOGIC_VECTOR(5 DOWNTO 0);
+    dina : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
+    douta : OUT STD_LOGIC_VECTOR(7 DOWNTO 0)
+  );
+END COMPONENT;
+
+
 
 signal done1 : std_logic := '0';
-signal wr_enable: STD_LOGIC_VECTOR(0 DOWNTO 0) := "0";
+signal wr_enable, wr_res_enable: STD_LOGIC_VECTOR(0 DOWNTO 0) := "0";
 signal addr_rom_re,addr_rom_im,addr_ram : STD_LOGIC_VECTOR(5 DOWNTO 0) := (others => '0');
 signal data_rom_re,data_in_ram_re,data_out_ram_re : STD_LOGIC_VECTOR(7 DOWNTO 0) := (others => '0');
 signal data_rom_im,data_in_ram_im,data_out_ram_im : STD_LOGIC_VECTOR(7 DOWNTO 0) := (others => '0');
 
 
-signal row_index,col_index,finalizaT, VALOR : integer := 0;
+signal row_index,col_index,finalizaT, VALOR, Resposta : integer := 0;
 
 signal xk_index_row,xk_index_col : integer := -2;
+
+signal xk_index_row2,xk_index_col2 : integer := -1;
 
 
 signal contador : STD_LOGIC_VECTOR(3 DOWNTO 0) := (others => '0');
@@ -101,12 +114,13 @@ signal TransformadaPronta : STD_LOGIC := '0';
 --signal VariavelTeste : STD_LOGIC_VECTOR(31 DOWNTO 0) := (others => '0');
 
 
-
+signal resultado_re, resultadoT_re: STD_LOGIC_VECTOR(7 DOWNTO 0) := (others => '0');
+signal addr_res : STD_LOGIC_VECTOR(5 DOWNTO 0) := (others => '0');
 
 
   constant CLOCK_PERIOD : time := 20 ns;
-  constant T_HOLD       : time := 10 ns;
-  constant T_STROBE     : time := CLOCK_PERIOD - (1 ns);
+  --constant T_HOLD       : time := 10 ns;
+  --constant T_STROBE     : time := CLOCK_PERIOD - (1 ns);
 
 --------------------------------------------------------------------------------------------
 ---------------------------------SINAIS DO PRIMEIRO NÚCLEO----------------------------------
@@ -266,7 +280,17 @@ FFT2_IPCore : FFT2
     xk_im => xk_im2
   );
   
-  
+image_rom_re : image1 port map(clk,addr_rom_re,data_rom_re);
+
+image_rom_im : image4 port map(clk,addr_rom_im,data_rom_im);
+
+image_ram_re : image2 port map(clk,wr_enable,addr_ram,data_in_ram_re,data_out_ram_re);
+
+image_ram_im : image3 port map(clk,wr_enable,addr_ram,data_in_ram_im,data_out_ram_im);
+
+ImagemFinal : Resultado port map(clk,wr_res_enable,addr_res,resultado_re,resultadoT_re);
+
+
   
   
   
@@ -292,13 +316,7 @@ end process clock_gen;
 
 
 
-image_rom_re : image1 port map(clk,addr_rom_re,data_rom_re);
 
-image_rom_im : image4 port map(clk,addr_rom_im,data_rom_im);
-
-image_ram_re : image2 port map(clk,wr_enable,addr_ram,data_in_ram_re,data_out_ram_re);
-
-image_ram_im : image3 port map(clk,wr_enable,addr_ram,data_in_ram_im,data_out_ram_im);
 
 
 -- Para a escrita das variáveis de configuração
@@ -375,7 +393,6 @@ begin
 		contador2 <= contador2 + "0001";
 		if (contador2 = "0111") then
 			Transformada2Pronta <= '1';
-			sclr2 <= '1';
 		else
 			Transformada2Pronta <= '0';
 		end if;
@@ -397,7 +414,6 @@ xk_index_col <= conv_integer(xk_index);
 process(clk)
 begin
 if(rising_edge(clk)) then
-	--if (rfd2 = '0') then
 		if(TransformadaPronta = '0') then
 			wr_enable <= "1"; --liga o modo escrever
 			data_in_ram_re <= xk_re;
@@ -405,8 +421,7 @@ if(rising_edge(clk)) then
 			addr_ram <= conv_std_logic_vector((xk_index_col*8 + xk_index_row),6); --o número 6 é o tamanho do vetor de endereço
 		else
 			if (finalizaT < 2) then
-				wr_enable <= "0";  --desliga o modo escrever
-				--addr_rom_re <= "000000"; 
+				wr_enable <= "0";  --desliga o modo escrever 
 				if(addr_ram = "111111") then 
 					addr_ram <= "000000";
 					finalizaT <= finalizaT +1;
@@ -418,12 +433,63 @@ if(rising_edge(clk)) then
 end if;    
 end process;  
 
+
+process(clk)   
+begin
+	if(rising_edge(clk2) and edone2 = '1') then
+		xk_index_row2 <= xk_index_row2 + 1;
+	end if;
+end process;
+      
+xk_index_col2 <= conv_integer(xk_index2);
+
+
+
+process(clk)
+begin
+if(rising_edge(clk)) then
+		if (Transformada2Pronta = '0') then
+			wr_res_enable <= "1"; --liga o modo escrever
+			resultado_re <= xk_re2;
+			addr_res <= conv_std_logic_vector((xk_index_col2*8 + xk_index_row2),6); --o número 6 é o tamanho do vetor de endereço
+		else
+			if (Resposta < 2) then
+				wr_res_enable <= "0";  --desliga o modo escrever 
+				if(addr_res = "111110") then 
+					addr_res <= "000000";
+					Resposta <= Resposta +1;
+            else
+					addr_res <= addr_res + 1;
+            end if; 
+			end if; 
+		end if;
+end if;    
+end process;  
+
+
+
+
+
 process(clk)   
 begin
 	if((TransformadaPronta = '1') and (dv = '1')) then
 		sclr <= '1';
 	end if;
 end process; 
+
+
+process(clk2)   
+begin
+		if (contador2 = "0111") and edone2 = '1' then
+			sclr2 <= '1';
+		end if;
+end process;
+
+
+
+
+
+
 
 process(clk)   
 begin
@@ -460,18 +526,18 @@ end process;
 VALOR <= conv_integer(xk_re2);
 
 
-WRITE_FILE: process (CLK)
-variable VEC_LINE : line;
-file VEC_FILE : text is out "C:\Users\amaur\OneDrive\Documentos\Vivado\Resultado.txt";
-begin
-	-- strobe OUT_DATA on falling edges 
-	-- of CLK and write value out to file
-	if (rising_edge(clk) and dv2 = '1')then
-		write (VEC_LINE, VALOR);
-		writeline (VEC_FILE, VEC_LINE);
-	end if;
-end process WRITE_FILE;
-
+--WRITE_FILE: process (CLK)
+--variable VEC_LINE : line;
+--file VEC_FILE : text is out "C:\Users\amaur\OneDrive\Documentos\Vivado\Resultado.txt";
+--begin
+--	-- strobe OUT_DATA on falling edges 
+--	-- of CLK and write value out to file
+--	if (rising_edge(clk) and dv2 = '1')then
+--		write (VEC_LINE, VALOR);
+--		writeline (VEC_FILE, VEC_LINE);
+--	end if;
+--end process WRITE_FILE;
+--
 
 
 
