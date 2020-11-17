@@ -23,6 +23,8 @@ use IEEE.STD_LOGIC_ARITH.ALL;
 use IEEE.STD_LOGIC_UNSIGNED.ALL;
 use ieee.numeric_std.all;
 use ieee.math_real.all;
+use STD.textio.all;
+use ieee.std_logic_textio.all;
 
 -- Uncomment the following library declaration if using
 -- arithmetic functions with Signed or Unsigned values
@@ -85,7 +87,7 @@ signal data_rom_re,data_in_ram_re,data_out_ram_re : STD_LOGIC_VECTOR(7 DOWNTO 0)
 signal data_rom_im,data_in_ram_im,data_out_ram_im : STD_LOGIC_VECTOR(7 DOWNTO 0) := (others => '0');
 
 
-signal row_index,col_index,finalizaT : integer := 0;
+signal row_index,col_index,finalizaT, VALOR : integer := 0;
 
 signal xk_index_row,xk_index_col : integer := -2;
 
@@ -102,7 +104,7 @@ signal TransformadaPronta : STD_LOGIC := '0';
 
 
 
-  constant CLOCK_PERIOD : time := 100 ns;
+  constant CLOCK_PERIOD : time := 20 ns;
   constant T_HOLD       : time := 10 ns;
   constant T_STROBE     : time := CLOCK_PERIOD - (1 ns);
 
@@ -164,6 +166,11 @@ signal TransformadaPronta : STD_LOGIC := '0';
 --------------------------------------------------------------------------------------------
 signal Transformada2Pronta : STD_LOGIC := '0';
 
+
+
+--
+--	signal	ResultadoRe 			: STD_LOGIC_VECTOR(7 DOWNTO 0);
+--	signal	ResultadoIM 			: STD_LOGIC_VECTOR(7 DOWNTO 0);
 
 
 COMPONENT FFT
@@ -389,7 +396,8 @@ xk_index_col <= conv_integer(xk_index);
 		
 process(clk)
 begin
-	if(rising_edge(clk)) then
+if(rising_edge(clk)) then
+	--if (rfd2 = '0') then
 		if(TransformadaPronta = '0') then
 			wr_enable <= "1"; --liga o modo escrever
 			data_in_ram_re <= xk_re;
@@ -405,8 +413,8 @@ begin
             else
 					addr_ram <= addr_ram + 1;
             end if; 
-        end if; 
-    end if; 
+			end if; 
+		end if;
 end if;    
 end process;  
 
@@ -441,6 +449,30 @@ begin
 		
 	end if;
 end process;  
+
+
+
+
+---------------------------------------------------------------------------------------------------
+
+
+
+VALOR <= conv_integer(xk_re2);
+
+
+WRITE_FILE: process (CLK)
+variable VEC_LINE : line;
+file VEC_FILE : text is out "C:\Users\amaur\OneDrive\Documentos\Vivado\Resultado.txt";
+begin
+	-- strobe OUT_DATA on falling edges 
+	-- of CLK and write value out to file
+	if (rising_edge(clk) and dv2 = '1')then
+		write (VEC_LINE, VALOR);
+		writeline (VEC_FILE, VEC_LINE);
+	end if;
+end process WRITE_FILE;
+
+
 
 
 
