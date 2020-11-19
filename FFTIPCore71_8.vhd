@@ -19,7 +19,7 @@
 ----------------------------------------------------------------------------------
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
-use IEEE.STD_LOGIC_ARITH.ALL;
+--use IEEE.STD_LOGIC_ARITH.ALL;
 use IEEE.STD_LOGIC_UNSIGNED.ALL;
 use ieee.numeric_std.all;
 use ieee.math_real.all;
@@ -100,9 +100,14 @@ signal data_rom_im,data_in_ram_im,data_out_ram_im : STD_LOGIC_VECTOR(7 DOWNTO 0)
 
 signal row_index,col_index,finalizaT, VALOR, Resposta : integer := 0;
 
-signal xk_index_row,xk_index_col : integer := -2;
+
+signal SAIDA : signed(7 downto 0);
+
+signal xk_index_row,xk_index_col : integer := -1;
 
 signal xk_index_row2,xk_index_col2 : integer := -1;
+
+
 
 
 signal contador : STD_LOGIC_VECTOR(3 DOWNTO 0) := (others => '0');
@@ -418,7 +423,7 @@ if(rising_edge(clk)) then
 			wr_enable <= "1"; --liga o modo escrever
 			data_in_ram_re <= xk_re;
 			data_in_ram_im <= xk_im;
-			addr_ram <= conv_std_logic_vector((xk_index_col*8 + xk_index_row),6); --o número 6 é o tamanho do vetor de endereço
+			addr_ram <= std_logic_vector(to_unsigned((xk_index_col*8 + xk_index_row),6)); --o número 6 é o tamanho do vetor de endereço
 		else
 			if (finalizaT < 2) then
 				wr_enable <= "0";  --desliga o modo escrever 
@@ -434,7 +439,7 @@ end if;
 end process;  
 
 
-process(clk)   
+process(clk2)   
 begin
 	if(rising_edge(clk2) and edone2 = '1') then
 		xk_index_row2 <= xk_index_row2 + 1;
@@ -451,7 +456,7 @@ if(rising_edge(clk)) then
 		if (Transformada2Pronta = '0') then
 			wr_res_enable <= "1"; --liga o modo escrever
 			resultado_re <= xk_re2;
-			addr_res <= conv_std_logic_vector((xk_index_col2*8 + xk_index_row2),6); --o número 6 é o tamanho do vetor de endereço
+			addr_res <= std_logic_vector(to_unsigned((xk_index_col2*8 + xk_index_row2),6)); --o número 6 é o tamanho do vetor de endereço
 		else
 			if (Resposta < 2) then
 				wr_res_enable <= "0";  --desliga o modo escrever 
@@ -523,21 +528,21 @@ end process;
 
 
 
-VALOR <= conv_integer(xk_re2);
+SAIDA <= signed(xk_re2);
+VALOR <= to_integer(SAIDA);
 
+WRITE_FILE: process (CLK)
+variable VEC_LINE : line;
+file VEC_FILE : text is out "C:\Users\amaur\OneDrive\Documentos\Vivado\Resultado.txt";
+begin
+	-- strobe OUT_DATA on falling edges 
+	-- of CLK and write value out to file
+	if (rising_edge(clk) and dv2 = '1')then
+		write (VEC_LINE, VALOR);
+		writeline (VEC_FILE, VEC_LINE);
+	end if;
+end process WRITE_FILE;
 
---WRITE_FILE: process (CLK)
---variable VEC_LINE : line;
---file VEC_FILE : text is out "C:\Users\amaur\OneDrive\Documentos\Vivado\Resultado.txt";
---begin
---	-- strobe OUT_DATA on falling edges 
---	-- of CLK and write value out to file
---	if (rising_edge(clk) and dv2 = '1')then
---		write (VEC_LINE, VALOR);
---		writeline (VEC_FILE, VEC_LINE);
---	end if;
---end process WRITE_FILE;
---
 
 
 
