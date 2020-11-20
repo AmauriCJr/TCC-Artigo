@@ -19,10 +19,13 @@
 ----------------------------------------------------------------------------------
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
-use IEEE.STD_LOGIC_ARITH.ALL;
+--use IEEE.STD_LOGIC_ARITH.ALL;
 use IEEE.STD_LOGIC_UNSIGNED.ALL;
 use ieee.numeric_std.all;
 use ieee.math_real.all;
+use STD.textio.all;
+use ieee.std_logic_textio.all;
+
 
 -- Uncomment the following library declaration if using
 -- arithmetic functions with Signed or Unsigned values
@@ -44,7 +47,7 @@ COMPONENT image1
   PORT (
     clka : IN STD_LOGIC;
     addra : IN STD_LOGIC_VECTOR(13 DOWNTO 0);
-    douta : OUT STD_LOGIC_VECTOR(8 DOWNTO 0)
+    douta : OUT STD_LOGIC_VECTOR(15 DOWNTO 0)
   );
 END COMPONENT;
 
@@ -52,7 +55,7 @@ COMPONENT image4
   PORT (
     clka : IN STD_LOGIC;
     addra : IN STD_LOGIC_VECTOR(13 DOWNTO 0);
-    douta : OUT STD_LOGIC_VECTOR(8 DOWNTO 0)
+    douta : OUT STD_LOGIC_VECTOR(15 DOWNTO 0)
   );
 END COMPONENT;
 
@@ -61,8 +64,8 @@ COMPONENT image2
     clka : IN STD_LOGIC;
     wea : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
     addra : IN STD_LOGIC_VECTOR(13 DOWNTO 0);
-    dina : IN STD_LOGIC_VECTOR(8 DOWNTO 0);
-    douta : OUT STD_LOGIC_VECTOR(8 DOWNTO 0)
+    dina : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
+    douta : OUT STD_LOGIC_VECTOR(15 DOWNTO 0)
   );
 END COMPONENT;
 
@@ -71,23 +74,28 @@ COMPONENT image3
     clka : IN STD_LOGIC;
     wea : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
     addra : IN STD_LOGIC_VECTOR(13 DOWNTO 0);
-    dina : IN STD_LOGIC_VECTOR(8 DOWNTO 0);
-    douta : OUT STD_LOGIC_VECTOR(8 DOWNTO 0)
+    dina : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
+    douta : OUT STD_LOGIC_VECTOR(15 DOWNTO 0)
   );
 END COMPONENT;
 
 
 
 signal done1 : std_logic := '0';
-signal wr_enable: STD_LOGIC_VECTOR(0 DOWNTO 0) := "0";
+signal wr_enable, wr_res_enable: STD_LOGIC_VECTOR(0 DOWNTO 0) := "0";
 signal addr_rom_re,addr_rom_im,addr_ram : STD_LOGIC_VECTOR(13 DOWNTO 0) := (others => '0');
-signal data_rom_re,data_in_ram_re,data_out_ram_re : STD_LOGIC_VECTOR(8 DOWNTO 0) := (others => '0');
-signal data_rom_im,data_in_ram_im,data_out_ram_im : STD_LOGIC_VECTOR(8 DOWNTO 0) := (others => '0');
+signal data_rom_re,data_in_ram_re,data_out_ram_re : STD_LOGIC_VECTOR(15 DOWNTO 0) := (others => '0');
+signal data_rom_im,data_in_ram_im,data_out_ram_im : STD_LOGIC_VECTOR(15 DOWNTO 0) := (others => '0');
 
 
-signal row_index,col_index,finalizaT : integer := 0;
+signal row_index,col_index,finalizaT, VALOR, Resposta : integer := 0;
 
-signal xk_index_row,xk_index_col : integer := -2;
+signal SAIDA : signed(15 downto 0);
+
+signal xk_index_row,xk_index_col : integer := -1;
+
+signal xk_index_row2,xk_index_col2 : integer := -1;
+
 
 
 signal contador : STD_LOGIC_VECTOR(7 DOWNTO 0) := (others => '0');
@@ -99,12 +107,11 @@ signal TransformadaPronta : STD_LOGIC := '0';
 --signal VariavelTeste : STD_LOGIC_VECTOR(31 DOWNTO 0) := (others => '0');
 
 
+signal resultado_re, resultadoT_re: STD_LOGIC_VECTOR(15 DOWNTO 0) := (others => '0');
+signal addr_res : STD_LOGIC_VECTOR(13 DOWNTO 0) := (others => '0');
 
 
-
-  constant CLOCK_PERIOD : time := 20 ns;
-  constant T_HOLD       : time := 10 ns;
-  constant T_STROBE     : time := CLOCK_PERIOD - (1 ns);
+constant CLOCK_PERIOD : time := 20 ns;
 
 --------------------------------------------------------------------------------------------
 ---------------------------------SINAIS DO PRIMEIRO NÚCLEO----------------------------------
@@ -113,8 +120,10 @@ signal TransformadaPronta : STD_LOGIC := '0';
     signal	clk 				: STD_LOGIC:= '0';							--Clock
     signal	start 			: STD_LOGIC:= '1';							--Manda o processo de começar o carregamento de dados e fft começar
 	 signal	sclr 				: STD_LOGIC:= '0';							--reseta a parada
-    signal	xn_re 			: STD_LOGIC_VECTOR(8 DOWNTO 0);			--Dados reais
-    signal	xn_im 			: STD_LOGIC_VECTOR(8 DOWNTO 0);			--Dados imaginários
+	 signal  cp_len 			: STD_LOGIC_VECTOR(6 DOWNTO 0);
+    signal  cp_len_we 		: STD_LOGIC;
+    signal	xn_re 			: STD_LOGIC_VECTOR(15 DOWNTO 0);			--Dados reais
+    signal	xn_im 			: STD_LOGIC_VECTOR(15 DOWNTO 0);			--Dados imaginários
     signal	fwd_inv 			: STD_LOGIC:= '0';							--1 pra transformada direta, 0 pra inversa
     signal	fwd_inv_we 		: STD_LOGIC:= '1';							--permite a variavel de cima modificar
 	 signal	scale_sch 		: STD_LOGIC_VECTOR(7 DOWNTO 0):= "01101010";
@@ -126,8 +135,10 @@ signal TransformadaPronta : STD_LOGIC := '0';
     signal	done 				: STD_LOGIC;
     signal	dv 				: STD_LOGIC;
     signal	xk_index 		: STD_LOGIC_VECTOR(6 DOWNTO 0);
-    signal	xk_re 			: STD_LOGIC_VECTOR(8 DOWNTO 0);
-    signal	xk_im 			: STD_LOGIC_VECTOR(8 DOWNTO 0);
+	 signal  cpv 				: STD_LOGIC;
+    signal  rfs 				: STD_LOGIC;
+    signal	xk_re 			: STD_LOGIC_VECTOR(15 DOWNTO 0);
+    signal	xk_im 			: STD_LOGIC_VECTOR(15 DOWNTO 0);
 	 
 --------------------------------------------------------------------------------------------
 --------------------------------------------------------------------------------------------
@@ -143,8 +154,10 @@ signal TransformadaPronta : STD_LOGIC := '0';
     signal	start2 			: STD_LOGIC:= '0';							--Manda o processo de começar o carregamento de dados e fft começar
 	 signal	sclr2 			: STD_LOGIC:= '0';							--reseta a parada
 	 signal  addr_in_fft2	: STD_LOGIC_VECTOR(6 DOWNTO 0):= (others => '0');
-    signal	xn_re2 			: STD_LOGIC_VECTOR(8 DOWNTO 0);			--Dados reais
-    signal	xn_im2 			: STD_LOGIC_VECTOR(8 DOWNTO 0);			--Dados imaginários
+--	 signal  cp_len2 			: STD_LOGIC_VECTOR(6 DOWNTO 0);
+--    signal  cp_len_we2 		: STD_LOGIC;
+    signal	xn_re2 			: STD_LOGIC_VECTOR(15 DOWNTO 0);			--Dados reais
+    signal	xn_im2 			: STD_LOGIC_VECTOR(15 DOWNTO 0);			--Dados imaginários
     signal	fwd_inv2			: STD_LOGIC:= '0';							--1 pra transformada direta, 0 pra inversa
     signal	fwd_inv_we2 	: STD_LOGIC:= '1';							--permite a variavel de cima modificar
 	 signal	scale_sch2 		: STD_LOGIC_VECTOR(7 DOWNTO 0):= "01101010";
@@ -156,8 +169,10 @@ signal TransformadaPronta : STD_LOGIC := '0';
     signal	done2				: STD_LOGIC;
     signal	dv2 				: STD_LOGIC;
     signal	xk_index2 		: STD_LOGIC_VECTOR(6 DOWNTO 0);
-    signal	xk_re2 			: STD_LOGIC_VECTOR(8 DOWNTO 0);
-    signal	xk_im2 			: STD_LOGIC_VECTOR(8 DOWNTO 0);
+--	 signal  cpv2 				: STD_LOGIC;
+--    signal  rfs2 				: STD_LOGIC;
+    signal	xk_re2 			: STD_LOGIC_VECTOR(15 DOWNTO 0);
+    signal	xk_im2 			: STD_LOGIC_VECTOR(15 DOWNTO 0);
   
   
 --------------------------------------------------------------------------------------------
@@ -171,8 +186,10 @@ COMPONENT FFT
     clk : IN STD_LOGIC;
     sclr : IN STD_LOGIC;
     start : IN STD_LOGIC;
-    xn_re : IN STD_LOGIC_VECTOR(8 DOWNTO 0);
-    xn_im : IN STD_LOGIC_VECTOR(8 DOWNTO 0);
+    cp_len : IN STD_LOGIC_VECTOR(6 DOWNTO 0);
+    cp_len_we : IN STD_LOGIC;
+    xn_re : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
+    xn_im : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
     fwd_inv : IN STD_LOGIC;
     fwd_inv_we : IN STD_LOGIC;
     scale_sch : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
@@ -184,8 +201,10 @@ COMPONENT FFT
     done : OUT STD_LOGIC;
     dv : OUT STD_LOGIC;
     xk_index : OUT STD_LOGIC_VECTOR(6 DOWNTO 0);
-    xk_re : OUT STD_LOGIC_VECTOR(8 DOWNTO 0);
-    xk_im : OUT STD_LOGIC_VECTOR(8 DOWNTO 0)
+    cpv : OUT STD_LOGIC;
+    rfs : OUT STD_LOGIC;
+    xk_re : OUT STD_LOGIC_VECTOR(15 DOWNTO 0);
+    xk_im : OUT STD_LOGIC_VECTOR(15 DOWNTO 0)
   );
 END COMPONENT;
 
@@ -194,8 +213,10 @@ COMPONENT FFT2
     clk : IN STD_LOGIC;
     sclr : IN STD_LOGIC;
     start : IN STD_LOGIC;
-    xn_re : IN STD_LOGIC_VECTOR(8 DOWNTO 0);
-    xn_im : IN STD_LOGIC_VECTOR(8 DOWNTO 0);
+--    cp_len : IN STD_LOGIC_VECTOR(6 DOWNTO 0);
+--    cp_len_we : IN STD_LOGIC;
+    xn_re : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
+    xn_im : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
     fwd_inv : IN STD_LOGIC;
     fwd_inv_we : IN STD_LOGIC;
     scale_sch : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
@@ -207,8 +228,10 @@ COMPONENT FFT2
     done : OUT STD_LOGIC;
     dv : OUT STD_LOGIC;
     xk_index : OUT STD_LOGIC_VECTOR(6 DOWNTO 0);
-    xk_re : OUT STD_LOGIC_VECTOR(8 DOWNTO 0);
-    xk_im : OUT STD_LOGIC_VECTOR(8 DOWNTO 0)
+--    cpv : OUT STD_LOGIC;
+--    rfs : OUT STD_LOGIC;
+    xk_re : OUT STD_LOGIC_VECTOR(15 DOWNTO 0);
+    xk_im : OUT STD_LOGIC_VECTOR(15 DOWNTO 0)
   );
 END COMPONENT;
 
@@ -220,6 +243,8 @@ FFT_IPCore : FFT
     clk => clk,
     sclr => sclr,
     start => start,
+    cp_len => cp_len,
+    cp_len_we => cp_len_we,
     xn_re => xn_re,
     xn_im => xn_im,
     fwd_inv => fwd_inv,
@@ -233,6 +258,8 @@ FFT_IPCore : FFT
     done => done,
     dv => dv,
     xk_index => xk_index,
+    cpv => cpv,
+    rfs => rfs,
     xk_re => xk_re,
     xk_im => xk_im
   );
@@ -240,8 +267,10 @@ FFT_IPCore : FFT
 FFT2_IPCore : FFT2
   PORT MAP (
     clk => clk2,
-	 sclr => sclr2,
+    sclr => sclr2,
     start => start2,
+--    cp_len => cp_len2,
+--    cp_len_we => cp_len_we2,
     xn_re => xn_re2,
     xn_im => xn_im2,
     fwd_inv => fwd_inv2,
@@ -255,6 +284,8 @@ FFT2_IPCore : FFT2
     done => done2,
     dv => dv2,
     xk_index => xk_index2,
+--    cpv => cpv2,
+--    rfs => rfs2,
     xk_re => xk_re2,
     xk_im => xk_im2
   );
@@ -393,7 +424,7 @@ begin
 			wr_enable <= "1"; --liga o modo escrever
 			data_in_ram_re <= xk_re;
 			data_in_ram_im <= xk_im;
-			addr_ram <= conv_std_logic_vector((xk_index_col*128 + xk_index_row),14); --o número 6 é o tamanho do vetor de endereço
+			addr_ram <= std_logic_vector(to_unsigned((xk_index_col*128 + xk_index_row),14)); --o número 6 é o tamanho do vetor de endereço
 		else
 			if (finalizaT < 2) then
 				wr_enable <= "0";  --desliga o modo escrever
@@ -408,6 +439,42 @@ begin
     end if; 
 end if;    
 end process;  
+
+
+process(clk2)   
+begin
+	if(rising_edge(clk2) and edone2 = '1') then
+		xk_index_row2 <= xk_index_row2 + 1;
+	end if;
+end process;
+      
+xk_index_col2 <= conv_integer(xk_index2);
+		
+process(clk)
+begin
+	if(rising_edge(clk)) then
+		if(TransformadaPronta = '0') then
+			wr_res_enable <= "1"; --liga o modo escrever
+			resultado_re <= xk_re2;
+			addr_res <= std_logic_vector(to_unsigned((xk_index_col2*128 + xk_index_row2),14)); --o número 6 é o tamanho do vetor de endereço
+		else
+			if (Resposta < 2) then
+				wr_res_enable <= "0";  --desliga o modo escrever
+				--addr_rom_re <= "000000"; 
+				if(addr_res = "11111111111111") then 
+					addr_res <= "00000000000000";
+					Resposta <= Resposta +1;
+            else
+					addr_res <= addr_res + 1;
+            end if; 
+        end if; 
+    end if; 
+end if;    
+end process; 
+
+
+
+
 
 process(clk)   
 begin
@@ -431,6 +498,22 @@ begin
 		
 	end if;
 end process;  
+
+
+SAIDA <= signed(xk_re2);
+VALOR <= to_integer(SAIDA);
+
+WRITE_FILE: process (CLK)
+variable VEC_LINE : line;
+file VEC_FILE : text is out "C:\Users\amaur\OneDrive\Documentos\Vivado\Resultado.txt";
+begin
+	-- strobe OUT_DATA on falling edges 
+	-- of CLK and write value out to file
+	if (rising_edge(clk) and dv2 = '1')then
+		write (VEC_LINE, VALOR);
+		writeline (VEC_FILE, VEC_LINE);
+	end if;
+end process WRITE_FILE;
 
 
 
