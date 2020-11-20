@@ -112,6 +112,8 @@ signal xk_index_row2,xk_index_col2 : integer := -1;
 
 signal contador : STD_LOGIC_VECTOR(3 DOWNTO 0) := (others => '0');
 signal contador2 : STD_LOGIC_VECTOR(3 DOWNTO 0) := (others => '0');
+signal contador3 : STD_LOGIC_VECTOR(3 DOWNTO 0) := (others => '0');
+signal contador4 : STD_LOGIC_VECTOR(6 DOWNTO 0) := (others => '0');
 
 signal TransformadaPronta : STD_LOGIC := '0';
 
@@ -458,7 +460,7 @@ if(rising_edge(clk)) then
 			resultado_re <= xk_re2;
 			addr_res <= std_logic_vector(to_unsigned((xk_index_col2*8 + xk_index_row2),6)); --o número 6 é o tamanho do vetor de endereço
 		else
-			if (Resposta < 2) then
+			if (Resposta < 1) then
 				wr_res_enable <= "0";  --desliga o modo escrever 
 				if(addr_res = "111110") then 
 					addr_res <= "000000";
@@ -521,25 +523,31 @@ begin
 	end if;
 end process;  
 
+----------------------------------Sinal para escrever resultado-----------------------------------
 
+process(clk)
+begin
+	if(rising_edge(clk) and (addr_res = "000000")) then
+		contador3 <= contador3 + 1;
 
+	end if;
+end process;
 
 ---------------------------------------------------------------------------------------------------
 
 
 
-SAIDA <= signed(xk_re2);
+SAIDA <= signed(resultadot_re);
 VALOR <= to_integer(SAIDA);
 
 WRITE_FILE: process (CLK)
 variable VEC_LINE : line;
 file VEC_FILE : text is out "C:\Users\amaur\OneDrive\Documentos\Vivado\Resultado.txt";
 begin
-	-- strobe OUT_DATA on falling edges 
-	-- of CLK and write value out to file
-	if (rising_edge(clk) and dv2 = '1')then
+	if (rising_edge(clk) and contador3 = 3 and contador4 < 64)then
 		write (VEC_LINE, VALOR);
 		writeline (VEC_FILE, VEC_LINE);
+		contador4 <= contador4 + 1;
 	end if;
 end process WRITE_FILE;
 
