@@ -19,7 +19,6 @@
 ----------------------------------------------------------------------------------
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
---use IEEE.STD_LOGIC_ARITH.ALL;
 use IEEE.STD_LOGIC_UNSIGNED.ALL;
 use ieee.numeric_std.all;
 use ieee.math_real.all;
@@ -80,6 +79,17 @@ COMPONENT image3
 END COMPONENT;
 
 
+COMPONENT Resultado
+  PORT (
+    clka : IN STD_LOGIC;
+    wea : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
+    addra : IN STD_LOGIC_VECTOR(13 DOWNTO 0);
+    dina : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
+    douta : OUT STD_LOGIC_VECTOR(15 DOWNTO 0)
+  );
+END COMPONENT;
+
+
 
 signal done1 : std_logic := '0';
 signal wr_enable, wr_res_enable: STD_LOGIC_VECTOR(0 DOWNTO 0) := "0";
@@ -94,12 +104,14 @@ signal SAIDA : signed(15 downto 0);
 
 signal xk_index_row,xk_index_col : integer := -1;
 
-signal xk_index_row2,xk_index_col2 : integer := -1;
+signal xk_index_row2,xk_index_col2, contador3 : integer := -1;
 
 
 
 signal contador : STD_LOGIC_VECTOR(7 DOWNTO 0) := (others => '0');
 signal contador2 : STD_LOGIC_VECTOR(7 DOWNTO 0) := (others => '0');
+--signal contador3 : STD_LOGIC_VECTOR(3 DOWNTO 0) := (others => '0');
+signal contador4 : STD_LOGIC_VECTOR(15 DOWNTO 0) := (others => '0');
 
 signal TransformadaPronta : STD_LOGIC := '0';
 
@@ -324,6 +336,8 @@ image_ram_re : image2 port map(clk,wr_enable,addr_ram,data_in_ram_re,data_out_ra
 
 image_ram_im : image3 port map(clk,wr_enable,addr_ram,data_in_ram_im,data_out_ram_im);
 
+ImagemFinal : Resultado port map(clk,wr_res_enable,addr_res,resultado_re,resultadoT_re);
+
 
 -- Para a escrita das variáveis de configuração
 process(clk)
@@ -450,10 +464,10 @@ end process;
       
 xk_index_col2 <= conv_integer(xk_index2);
 		
-process(clk)
+process(clk2)
 begin
-	if(rising_edge(clk)) then
-		if(TransformadaPronta = '0') then
+	if(rising_edge(clk2)) then
+		if(Transformada2Pronta = '0') then
 			wr_res_enable <= "1"; --liga o modo escrever
 			resultado_re <= xk_re2;
 			addr_res <= std_logic_vector(to_unsigned((xk_index_col2*128 + xk_index_row2),14)); --o número 6 é o tamanho do vetor de endereço
@@ -500,18 +514,28 @@ begin
 end process;  
 
 
-SAIDA <= signed(xk_re2);
+process(clk)
+begin
+	if(rising_edge(clk) and (Transformada2Pronta = '1') and contador3 < 6) then
+		contador3 <= contador3 + 1;
+	end if;
+end process;
+
+---------------------------------------------------------------------------------------------------
+
+
+
+SAIDA <= signed(resultadot_re);
 VALOR <= to_integer(SAIDA);
 
 WRITE_FILE: process (CLK)
 variable VEC_LINE : line;
 file VEC_FILE : text is out "C:\Users\amaur\OneDrive\Documentos\Vivado\Resultado.txt";
 begin
-	-- strobe OUT_DATA on falling edges 
-	-- of CLK and write value out to file
-	if (rising_edge(clk) and dv2 = '1')then
+	if (rising_edge(clk) and contador3 >= 0 and contador4 < 16384)then
 		write (VEC_LINE, VALOR);
 		writeline (VEC_FILE, VEC_LINE);
+		contador4 <= contador4 + 1;
 	end if;
 end process WRITE_FILE;
 
