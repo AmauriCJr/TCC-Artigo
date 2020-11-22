@@ -54,7 +54,7 @@ sinal = s(1)
 if (sinal == '1')
     mult = -1
 elseif(sinal == '0')
-    mult = 0
+    mult = 1
 end
 
 Resultado = mult*pot*total
