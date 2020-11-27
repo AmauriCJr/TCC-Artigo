@@ -110,7 +110,7 @@ signal data_rom_re,data_in_ram_re,data_out_ram_re : STD_LOGIC_VECTOR(31 DOWNTO 0
 signal data_rom_im,data_in_ram_im,data_out_ram_im : STD_LOGIC_VECTOR(31 DOWNTO 0) := (others => '0');
 
 
-signal row_index,col_index,finalizaT, VALOR, VALOR2, VALOR3, VALOR4, Resposta : integer := 0;
+signal row_index,col_index,finalizaT, VALOR, VALOR2, VALOR3, VALOR4, Resposta, CONTAGEMCLK : integer := 0;
 
 signal SAIDA, SAIDA2, SAIDA3, SAIDA4 : signed(31 downto 0);
 
@@ -527,16 +527,25 @@ begin
 	end if;
 end process;
 
+
+
+CONTAR_CLKs: process(clk)
+begin
+	if(rising_edge(clk)) then
+		CONTAGEMCLK <= CONTAGEMCLK + 1;
+	end if;
+end process CONTAR_CLKs;
+
 ---------------------------------------------------------------------------------------------------
 
 
 VALOR <= to_integer(abs(signed(resultadot_re))) + to_integer(abs(signed(resultadot_im)));
 
-WRITE_FILE_RE: process (CLK)
+WRITE_FILE_RE: process(clk)
 variable VEC_LINE : line;
 file VEC_FILE : text is out "C:\Users\amaur\OneDrive\Documentos\Vivado\Resultado2.txt";
 begin
-	if (rising_edge(clk) and contador3 >= 0 and contador4 < 16384)then
+	if (rising_edge(clk) and contador3 >= 0 and contador4 < 16384) then
 		write (VEC_LINE, VALOR);
 		writeline (VEC_FILE, VEC_LINE);
 		contador4 <= contador4 + 1;
