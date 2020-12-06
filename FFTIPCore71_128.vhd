@@ -26,14 +26,7 @@ use STD.textio.all;
 use ieee.std_logic_textio.all;
 
 
--- Uncomment the following library declaration if using
--- arithmetic functions with Signed or Unsigned values
---use IEEE.NUMERIC_STD.ALL;
 
--- Uncomment the following library declaration if instantiating
--- any Xilinx primitives in this code.
---library UNISIM;
---use UNISIM.VComponents.all;
 
 
 entity TopLevel is
@@ -110,9 +103,9 @@ signal data_rom_re,data_in_ram_re,data_out_ram_re : STD_LOGIC_VECTOR(31 DOWNTO 0
 signal data_rom_im,data_in_ram_im,data_out_ram_im : STD_LOGIC_VECTOR(31 DOWNTO 0) := (others => '0');
 
 
-signal row_index,col_index,finalizaT, VALOR, VALOR2, VALOR3, VALOR4, Resposta, CONTAGEMCLK : integer := 0;
+signal row_index,col_index,finalizaT, VALOR, VALOR2, VALOR3, VALOR4, VALOR5, VALOR6, Resposta, CONTAGEMCLK : integer := 0;
 
-signal SAIDA, SAIDA2, SAIDA3, SAIDA4 : signed(31 downto 0);
+signal SAIDA, SAIDA2, SAIDA3, SAIDA4, SAIDA5, SAIDA6 : signed(31 downto 0);
 
 signal xk_index_row,xk_index_col : integer := -1;
 
@@ -122,13 +115,9 @@ signal xk_index_row2,xk_index_col2, contador3 : integer := -1;
 
 signal contador : STD_LOGIC_VECTOR(7 DOWNTO 0) := (others => '0');
 signal contador2 : STD_LOGIC_VECTOR(7 DOWNTO 0) := (others => '0');
---signal contador3 : STD_LOGIC_VECTOR(3 DOWNTO 0) := (others => '0');
 signal contador4 : STD_LOGIC_VECTOR(31 DOWNTO 0) := (others => '0');
 
 signal TransformadaPronta : STD_LOGIC := '0';
-
-
---signal VariavelTeste : STD_LOGIC_VECTOR(31 DOWNTO 0) := (others => '0');
 
 
 signal resultado_re, resultadoT_re, resultado_im, resultadoT_im: STD_LOGIC_VECTOR(31 DOWNTO 0) := (others => '0');
@@ -143,10 +132,7 @@ constant CLOCK_PERIOD : time := 10 ns;
   
     signal	clk 				: STD_LOGIC:= '0';							--Clock
     signal	start 			: STD_LOGIC:= '1';							--Manda o processo de começar o carregamento de dados e fft começar
---	 signal	unload 			: STD_LOGIC:= '1';
-	 signal	sclr 				: STD_LOGIC:= '0';							--reseta a parada
-	 --signal  cp_len 			: STD_LOGIC_VECTOR(6 DOWNTO 0);
-    --signal  cp_len_we 		: STD_LOGIC;
+	 signal	sclr 				: STD_LOGIC:= '0';							--reseta o núcleo
     signal	xn_re 			: STD_LOGIC_VECTOR(31 DOWNTO 0);			--Dados reais
     signal	xn_im 			: STD_LOGIC_VECTOR(31 DOWNTO 0);			--Dados imaginários
     signal	fwd_inv 			: STD_LOGIC:= '0';							--1 pra transformada direta, 0 pra inversa
@@ -177,11 +163,8 @@ constant CLOCK_PERIOD : time := 10 ns;
 	 
 	 signal	clk2 				: STD_LOGIC:= '0';							--Clock
     signal	start2 			: STD_LOGIC:= '0';							--Manda o processo de começar o carregamento de dados e fft começar
---	 signal	unload2 			: STD_LOGIC:= '0';
-	 signal	sclr2 			: STD_LOGIC:= '0';							--reseta a parada
+	 signal	sclr2 			: STD_LOGIC:= '0';							--reseta o núcleo
 	 signal  addr_in_fft2	: STD_LOGIC_VECTOR(6 DOWNTO 0):= (others => '0');
-    --signal  cp_len2 			: STD_LOGIC_VECTOR(6 DOWNTO 0);
-    --signal  cp_len_we2 		: STD_LOGIC;
     signal	xn_re2 			: STD_LOGIC_VECTOR(31 DOWNTO 0);			--Dados reais
     signal	xn_im2 			: STD_LOGIC_VECTOR(31 DOWNTO 0);			--Dados imaginários
     signal	fwd_inv2			: STD_LOGIC:= '0';							--1 pra transformada direta, 0 pra inversa
@@ -212,7 +195,6 @@ COMPONENT FFT
     clk : IN STD_LOGIC;
     sclr : IN STD_LOGIC;
     start : IN STD_LOGIC;
---    unload : IN STD_LOGIC;
     xn_re : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
     xn_im : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
     fwd_inv : IN STD_LOGIC;
@@ -236,7 +218,6 @@ COMPONENT FFT2
     clk : IN STD_LOGIC;
     sclr : IN STD_LOGIC;
     start : IN STD_LOGIC;
---    unload : IN STD_LOGIC;
     xn_re : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
     xn_im : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
     fwd_inv : IN STD_LOGIC;
@@ -263,7 +244,6 @@ FFT_IPCore : FFT
     clk => clk,
     sclr => sclr,
     start => start,
---    unload => unload,
     xn_re => xn_re,
     xn_im => xn_im,
     fwd_inv => fwd_inv,
@@ -286,7 +266,6 @@ FFT2_IPCore : FFT2
     clk => clk2,
     sclr => sclr2,
     start => start2,
---    unload => unload2,
     xn_re => xn_re2,
     xn_im => xn_im2,
     fwd_inv => fwd_inv2,
@@ -318,7 +297,6 @@ FFT2_IPCore : FFT2
 clock_gen : process
 begin
 	clk <= '0';
-	--wait for CLOCK_PERIOD/2;
 	loop
 		clk <= '0';
       wait for CLOCK_PERIOD/2;
@@ -475,11 +453,10 @@ begin
 			wr_res_enable <= "1"; --liga o modo escrever
 			resultado_re <= xk_re2; 
 			resultado_im <= xk_im2;
-			addr_res <= std_logic_vector(to_unsigned((xk_index_col2*128 + xk_index_row2),14)); --o número 6 é o tamanho do vetor de endereço
+			addr_res <= std_logic_vector(to_unsigned((xk_index_col2*128 + xk_index_row2),14)); --o número 14 é o tamanho do vetor de endereço
 		else
 			if (Resposta < 2) then
 				wr_res_enable <= "0";  --desliga o modo escrever
-				--addr_rom_re <= "000000"; 
 				if(addr_res = "11111111111111") then 
 					addr_res <= "00000000000000";
 					Resposta <= Resposta +1;
@@ -507,7 +484,6 @@ begin
 	if(TransformadaPronta = '1') then
 		clk2 <= clk;
 		start2 <= '1';
---		unload2 <= '1';
 	end if;
 end process; 
  
@@ -543,7 +519,7 @@ VALOR <= to_integer(abs(signed(resultadot_re))) + to_integer(abs(signed(resultad
 
 WRITE_FILE_RE: process(clk)
 variable VEC_LINE : line;
-file VEC_FILE : text is out "C:\Users\amaur\OneDrive\Documentos\Vivado\Resultado2.txt";
+file VEC_FILE : text is out "C:\Users\amaur\OneDrive\Documentos\Vivado\Resultado.txt";
 begin
 	if (rising_edge(clk) and contador3 >= 0 and contador4 < 16384) then
 		write (VEC_LINE, VALOR);
@@ -551,6 +527,68 @@ begin
 		contador4 <= contador4 + 1;
 	end if;
 end process WRITE_FILE_RE;
+
+
+
+SAIDA2 <= signed(xk_re2);
+VALOR2 <= to_integer(SAIDA2);
+
+WRITE_FILE_RE2: process(clk)
+variable VEC_LINE : line;
+file VEC_FILE : text is out "C:\Users\amaur\OneDrive\Documentos\Vivado\Resultado2.txt";
+begin
+	if (rising_edge(clk) and dv2 = '1') then
+		write (VEC_LINE, VALOR2);
+		writeline (VEC_FILE, VEC_LINE);
+--		contador4 <= contador4 + 1;
+	end if;
+end process WRITE_FILE_RE2;
+
+
+
+SAIDA4 <= signed(xk_im2);
+VALOR4 <= to_integer(SAIDA4);
+
+WRITE_FILE_RE5: process(clk)
+variable VEC_LINE : line;
+file VEC_FILE : text is out "C:\Users\amaur\OneDrive\Documentos\Vivado\Resultado3.txt";
+begin
+	if (rising_edge(clk) and dv2 = '1') then
+		write (VEC_LINE, VALOR4);
+		writeline (VEC_FILE, VEC_LINE);
+--		contador4 <= contador4 + 1;
+	end if;
+end process WRITE_FILE_RE5;
+
+
+SAIDA6 <= signed(xk_re);
+VALOR6 <= to_integer(SAIDA6);
+
+WRITE_FILE_RE6: process(clk)
+variable VEC_LINE : line;
+file VEC_FILE : text is out "C:\Users\amaur\OneDrive\Documentos\Vivado\Resultado4.txt";
+begin
+	if (rising_edge(clk) and dv = '1') then
+		write (VEC_LINE, VALOR6);
+		writeline (VEC_FILE, VEC_LINE);
+--		contador4 <= contador4 + 1;
+	end if;
+end process WRITE_FILE_RE6;
+
+SAIDA3 <= signed(xk_im);
+VALOR3 <= to_integer(SAIDA3);
+
+WRITE_FILE_RE3: process(clk)
+variable VEC_LINE : line;
+file VEC_FILE : text is out "C:\Users\amaur\OneDrive\Documentos\Vivado\Resultado5.txt";
+begin
+	if (rising_edge(clk) and dv = '1') then
+		write (VEC_LINE, VALOR3);
+		writeline (VEC_FILE, VEC_LINE);
+--		contador4 <= contador4 + 1;
+	end if;
+end process WRITE_FILE_RE3;
+
 
 
 
